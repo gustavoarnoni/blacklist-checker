@@ -1,0 +1,9 @@
+# Node modules
+node_modules/
+frontend/node_modules/
+
+# Build do frontend
+frontend/build/
+
+# Arquivos sensíveis
+.env
