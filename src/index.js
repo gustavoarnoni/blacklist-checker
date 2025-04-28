@@ -103,14 +103,14 @@ async function processDomains(filePath, apiKey) {
   if (successResults.length > 0) {
     console.log('📊 Resultados:');
     console.table(successResults);
-    saveCSV('resultados.csv', successResults);
+    saveCSV('./data/resultados.csv', successResults);
   }
 
   // TABELA no terminal para erros
   if (errorResults.length > 0) {
     console.log('📊 Erros encontrados:');
     console.table(errorResults);
-    saveCSV('erros.csv', errorResults);
+    saveCSV('./data/erros.csv', errorResults);
   }
 
   console.log('🏁 Processo finalizado.');
