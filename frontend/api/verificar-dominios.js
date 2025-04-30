@@ -1,4 +1,5 @@
 const axios = require('axios');
+const dns = require('dns').promises;
 
 // Função simples para validar formato de domínio
 function isValidDomain(domain) {
@@ -7,7 +8,6 @@ function isValidDomain(domain) {
 }
 
 module.exports = async (req, res) => {
-
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Método não permitido. Use POST.' });
   }
@@ -15,12 +15,10 @@ module.exports = async (req, res) => {
   const apiKey = process.env.API_KEY;
   const { dominios } = req.body;
 
-  // Validação da lista recebida
   if (!dominios || !Array.isArray(dominios) || dominios.length === 0) {
     return res.status(400).json({ message: 'Lista de domínios inválida.' });
   }
 
-  // Nova verificação: limite de 100 domínios
   if (dominios.length > 100) {
     return res.status(400).json({ message: 'Você pode verificar no máximo 100 domínios por vez.' });
   }
@@ -31,11 +29,25 @@ module.exports = async (req, res) => {
   for (const domain of dominios) {
     if (!isValidDomain(domain)) {
       erros.push({ domain, error: 'Formato de domínio inválido.' });
-      continue; // pula para o próximo domínio
+      continue;
+    }
+
+    let consulta = domain;
+    let resolvidoPorIP = false;
+
+    try {
+      const resolved = await dns.lookup(domain);
+      if (resolved && resolved.address) {
+        consulta = resolved.address;
+        resolvidoPorIP = true;
+      }
+    } catch (err) {
+      // Se falhar, continua com o domínio mesmo
     }
 
     try {
-      const apiUrl = `https://www.blacklistmaster.com/restapi/v1/blacklistcheck/domain/${domain}?apikey=${apiKey}`;
+      const tipo = resolvidoPorIP ? 'ip' : 'domain';
+      const apiUrl = `https://www.blacklistmaster.com/restapi/v1/blacklistcheck/${tipo}/${consulta}?apikey=${apiKey}`;
       const response = await axios.get(apiUrl);
       const data = response.data;
 
@@ -44,11 +56,13 @@ module.exports = async (req, res) => {
       }
 
       resultados.push({
-        domain: domain,
+        dominioOriginal: domain,
+        consultaUsada: consulta,
         status: data.status,
         blacklistCount: data.blacklist_cnt,
         blacklistSeverity: data.blacklist_severity,
-        blacklists: data.blacklists ? data.blacklists.map(b => b.blacklist_name).join('; ') : ''
+        blacklists: data.blacklists ? data.blacklists.map(b => b.blacklist_name).join('; ') : '',
+        via: tipo
       });
 
     } catch (error) {
@@ -56,7 +70,6 @@ module.exports = async (req, res) => {
     }
   }
 
-  // Responder com arrays válidos sempre
   return res.status(200).json({
     resultados: resultados.length > 0 ? resultados : [],
     erros: erros.length > 0 ? erros : []

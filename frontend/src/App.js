@@ -152,10 +152,12 @@ function App() {
       {resultados.length > 0 && (
         <>
           <h2>Resultados</h2>
-          <table border="1" cellPadding="5" style={{ marginTop: '10px' }}>
+          <table>
             <thead>
               <tr>
                 <th>Domínio</th>
+                <th>Consulta Usada</th>
+                <th>Tipo</th>
                 <th>Status</th>
                 <th>Nº Blacklists</th>
                 <th>Severidade</th>
@@ -164,7 +166,9 @@ function App() {
             <tbody>
               {resultados.map((item, idx) => (
                 <tr key={idx}>
-                  <td>{item.domain}</td>
+                  <td>{item.dominioOriginal}</td>
+                  <td>{item.consultaUsada}</td>
+                  <td>{item.via === 'ip' ? 'IP' : 'Domínio'}</td>
                   <td>{item.status}</td>
                   <td>{item.blacklistCount}</td>
                   <td>{item.blacklistSeverity}</td>
@@ -172,7 +176,6 @@ function App() {
               ))}
             </tbody>
           </table>
-
           <button onClick={handleDownloadCSV} className="download">
             📥 Baixar Resultados CSV
           </button>
