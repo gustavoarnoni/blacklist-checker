@@ -25,7 +25,7 @@ function App() {
 
     try {
       setLoading(true);
-      const response = await fetch('https://blacklist-checker-beta.vercel.app/api/verificar-dominios', {
+      const response = await fetch('https://blacklist.gustavoarnoni.dev.br/api/verificar-dominios', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
