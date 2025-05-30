@@ -1,7 +1,6 @@
 const axios = require('axios');
 const dns = require('dns').promises;
 
-// Função simples para validar formato de domínio
 function isValidDomain(domain) {
   const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return domainRegex.test(domain);
@@ -12,66 +11,66 @@ module.exports = async (req, res) => {
     return res.status(405).json({ message: 'Método não permitido. Use POST.' });
   }
 
-  const apiKey = process.env.API_KEY;
+  const apiKey = process.env.ABUSEIPDB_KEY;
   const { dominios } = req.body;
 
   if (!dominios || !Array.isArray(dominios) || dominios.length === 0) {
     return res.status(400).json({ message: 'Lista de domínios inválida.' });
   }
 
-  if (dominios.length > 100) {
-    return res.status(400).json({ message: 'Você pode verificar no máximo 100 domínios por vez.' });
-  }
-
   const resultados = [];
   const erros = [];
 
-  for (const domain of dominios) {
-    if (!isValidDomain(domain)) {
-      erros.push({ domain, error: 'Formato de domínio inválido.' });
+  for (const dominio of dominios) {
+    if (!isValidDomain(dominio)) {
+      erros.push({ domain: dominio, error: 'Formato de domínio inválido.' });
       continue;
     }
 
-    let consulta = domain;
-    let resolvidoPorIP = false;
+    let ip = null;
+    let via = 'domínio';
 
     try {
-      const resolved = await dns.lookup(domain);
-      if (resolved && resolved.address) {
-        consulta = resolved.address;
-        resolvidoPorIP = true;
-      }
+      const resolved = await dns.lookup(dominio);
+      ip = resolved.address;
+      via = 'IP';
     } catch (err) {
-      // Se falhar, continua com o domínio mesmo
+      erros.push({ domain: dominio, error: 'Erro ao resolver domínio para IP.' });
+      continue;
     }
 
     try {
-      const tipo = resolvidoPorIP ? 'ip' : 'domain';
-      const apiUrl = `https://www.blacklistmaster.com/restapi/v1/blacklistcheck/${tipo}/${consulta}?apikey=${apiKey}`;
-      const response = await axios.get(apiUrl);
-      const data = response.data;
-
-      if (data.response !== "OK") {
-        throw new Error(data.response || 'Erro desconhecido');
-      }
-
-      resultados.push({
-        dominioOriginal: domain,
-        consultaUsada: consulta,
-        status: data.status,
-        blacklistCount: data.blacklist_cnt,
-        blacklistSeverity: data.blacklist_severity,
-        blacklists: data.blacklists ? data.blacklists.map(b => b.blacklist_name).join('; ') : '',
-        via: tipo
+      const response = await axios.get(`https://api.abuseipdb.com/api/v2/check`, {
+        params: {
+          ipAddress: ip,
+          maxAgeInDays: 90
+        },
+        headers: {
+          Key: apiKey,
+          Accept: 'application/json'
+        }
       });
 
+      const data = response.data.data;
+
+      resultados.push({
+        dominioOriginal: dominio,
+        consultaUsada: ip,
+        via,
+        abuseConfidenceScore: data.abuseConfidenceScore,
+        totalReports: data.totalReports,
+        lastReportedAt: data.lastReportedAt || 'Nunca',
+        countryCode: data.countryCode || '-',
+        domain: data.domain || '-',
+        hostnames: data.hostnames ? data.hostnames.join('; ') : '-'
+      });
     } catch (error) {
-      erros.push({ domain, error: 'Erro ao consultar a API externa. Tente novamente.' });
+      erros.push({ domain: dominio, error: 'Erro ao consultar API AbuseIPDB.' });
     }
   }
 
   return res.status(200).json({
-    resultados: resultados.length > 0 ? resultados : [],
-    erros: erros.length > 0 ? erros : []
+    resultados,
+    erros
   });
 };
