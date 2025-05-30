@@ -110,3 +110,21 @@ table th, table td {
 table th {
   background-color: #f0f0f0;
 }
+
+.erros-lista {
+  background-color: #ffeaea;
+  border: 1px solid #ff5f5f;
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 20px;
+  color: #a10000;
+}
+
+.erros-lista ul {
+  margin-top: 10px;
+  padding-left: 20px;
+}
+
+.erros-lista li {
+  margin-bottom: 6px;
+}

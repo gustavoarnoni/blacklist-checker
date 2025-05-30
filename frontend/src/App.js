@@ -42,6 +42,8 @@
         setErros(data.erros);
       } catch (error) {
         console.error('Erro ao verificar domínios:', error);
+        console.log('Resultados recebidos:', data.resultados);
+        console.log('Erros recebidos:', data.erros);
         alert('Erro ao consultar a API. Tente novamente.');
       } finally {
         setLoading(false);
@@ -160,6 +162,7 @@
           className="verify"
         >
           {loading ? '🔄 Verificando...' : 'Verificar Domínios'}
+          
         </button>
 
         {resultados.length > 0 && (
@@ -194,21 +197,24 @@
             </button>
           </>
         )}
+      {erros.length > 0 && (
+        <div className="erros-lista">
+          <p className="alert-erro">
+            ⚠️ {erros.length} domínios apresentaram erro na verificação:
+          </p>
+          <ul>
+            {erros.map((erro, idx) => (
+              <li key={idx}>
+                <strong>{erro.domain}</strong>: {erro.error}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
-        {erros.length > 0 && (
-          <div>
-            <p className="alert-erro">
-              ⚠️ {erros.length} domínios apresentaram erro na verificação.
-            </p>
-            <button onClick={handleDownloadErrosCSV} className="erros">
-              📥 Baixar Erros CSV
-            </button>
-          </div>
-        )}
-        <Analytics/>
-      </div>
-    );
-  }
+      <Analytics />
+    </div>
+  );
+}
 
-  export default App;
-  
+export default App;
