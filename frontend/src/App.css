@@ -128,3 +128,7 @@ table th {
 .erros-lista li {
   margin-bottom: 6px;
 }
+
+table td {
+  word-break: break-word;
+}
