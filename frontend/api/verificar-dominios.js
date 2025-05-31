@@ -1,6 +1,17 @@
+/**
+ * verificar-dominios.js
+ *
+ * Rota (Serverless) que:
+ * - Recebe um array de domínios (POST),
+ * - Resolve cada domínio para IP,
+ * - Consulta várias DNSBLs (RBL) via DNS,
+ * - Retorna, para cada domínio, em quais listas ele foi encontrado (se houver).
+ */
+
 const dns = require('dns').promises;
 
-// Lista de DNSBLs (IP-based e Domain-based)
+// Lista de DNSBLs públicas e gratuitas
+// "type: 'ip'" usa IP invertido, "type: 'domain'" usa o próprio domínio
 const DNSBLS = [
   // IP-based
   { name: 'Spamhaus ZEN', host: 'zen.spamhaus.org', type: 'ip' },
@@ -21,7 +32,7 @@ const DNSBLS = [
   { name: 'ivmSIP (Abuse.CH)', host: 'ivmsip.abuse.ch', type: 'domain' }
 ];
 
-// Função para validar formato de domínio
+// Valida se uma string é um domínio no formato correto
 function isValidDomain(domain) {
   const domainRegex = /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
   return domainRegex.test(domain);
@@ -33,24 +44,32 @@ function invertIP(ip) {
 }
 
 /**
- * Verifica, via DNS, se determinado IP/domínio está em uma lista (DNSBL).
+ * Consulta um DNSBL via DNS para saber se "queryTerm.host" está listado.
  * 
- * @param {string} queryTerm - Se type === 'ip', deve ser IP invertido; se 'domain', deve ser domínio.
- * @param {string} host - O host da lista (ex: 'zen.spamhaus.org' ou 'dbl.spamhaus.org').
- * @returns {Promise<boolean>} - resolve(true) se listado (retornou algum IP); resolve(false) se não listado (ENOTFOUND).
+ * @param {string} queryTerm  Se type === 'ip', deve ser IP invertido; se 'domain', deve ser o domínio.
+ * @param {string} host       O host da lista (ex: 'zen.spamhaus.org').
+ * @returns {Promise<boolean>}  true se listado (resolve4 retornar um resultado);
+ *                              false se não listado (ENOTFOUND ou timeout/SERVFAIL/etc).
  */
 async function checkListingViaDNS(queryTerm, host) {
   const dnsName = `${queryTerm}.${host}`;
+
   try {
-    // Se resolver, significa que está listado.
+    // Se listar (retornar algum A record), então está listado
     await dns.resolve4(dnsName);
     return true;
   } catch (err) {
-    if (err.code === 'ENOTFOUND') {
-      // Não listado
+    // Se for ENOTFOUND ou NXDOMAIN, interpretar como "não listado"
+    if (err.code === 'ENOTFOUND' || err.code === 'ENODATA') {
       return false;
     }
-    // Qualquer outro erro de DNS, repassa
+    // Se for timeout ou SERVFAIL, também tratamos como "não listado",
+    // mas podemos logar para depuração
+    if (err.code === 'ETIMEOUT' || err.code === 'SERVFAIL') {
+      console.warn(`Aviso: consulta à ${dnsName} resultou em ${err.code}. Considerando "não listado".`);
+      return false;
+    }
+    // Qualquer outro erro, repassamos para subir no catch do loop principal
     throw err;
   }
 }
@@ -69,39 +88,35 @@ module.exports = async (req, res) => {
   }
 
   for (const dominio of dominios) {
-    // 1) Validação de formato de domínio
+    // 1) Validar formato do domínio
     if (!isValidDomain(dominio)) {
       erros.push({ domain: dominio, error: 'Formato de domínio inválido.' });
       continue;
     }
 
-    // 2) Resolver perído (domain → IP)
+    // 2) Resolver domínio para IP (via DNS)
     let consulta = dominio;
     let via = 'domínio';
     let ip;
-
     try {
       const resolved = await dns.lookup(dominio);
       ip = resolved.address;
       consulta = ip;
       via = 'IP';
     } catch (err) {
-      // Se não conseguir resolver o domínio, consideramos erro e pulamos
-      erros.push({ domain: dominio, error: `Erro de DNS: ${err.code}` });
+      erros.push({ domain: dominio, error: `Erro de DNS (lookup): ${err.code}` });
       continue;
     }
 
-    // 3) Preparar array de queries para cada DNSBL
+    // 3) Para cada DNSBL, montar a query e verificar listagem
     const listedOn = [];
-
     for (const dnsbl of DNSBLS) {
       try {
         let queryTerm;
-
         if (dnsbl.type === 'ip') {
-          queryTerm = invertIP(consulta); // consulta contém o IP
-        } else if (dnsbl.type === 'domain') {
-          queryTerm = dominio; // consulta o domínio diretamente
+          queryTerm = invertIP(consulta);
+        } else {
+          queryTerm = dominio;
         }
 
         const isListed = await checkListingViaDNS(queryTerm, dnsbl.host);
@@ -109,7 +124,8 @@ module.exports = async (req, res) => {
           listedOn.push(dnsbl.name);
         }
       } catch (err) {
-        // Se algum erro de DNS diferente de ENOTFOUND, registramos na lista de erros
+        // Log de depuração e adiciona ao array de erros, mas não para toda a verificação
+        console.error(`Erro consultando ${dnsbl.name} para ${dominio} (${consulta}): ${err.code || err.message}`);
         erros.push({
           domain: dominio,
           error: `Erro ao consultar ${dnsbl.name}: ${err.code || err.message}`
@@ -117,7 +133,9 @@ module.exports = async (req, res) => {
       }
     }
 
-    // 4) Montar o objeto de resultado para esse domínio
+    // 4) Empurra o resultado para o array de resultados
+    console.log(`→ [${dominio}] (${consulta} via ${via}) listado em: ${JSON.stringify(listedOn)}`);
+
     resultados.push({
       dominioOriginal: dominio,
       consultaUsada: consulta,
