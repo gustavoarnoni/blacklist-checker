@@ -55,24 +55,18 @@ function App() {
     const headers = [
       'Domínio Original',
       'Consulta Usada',
-      'Tipo',
-      'Score de Confiança',
-      'Total de Denúncias',
-      'Última Denúncia',
-      'País',
-      'Hostnames'
+      'Via',
+      'Nº de Blacklists',
+      'Listas Blacklistadas'
     ];
-
+    
     const rows = resultados.map(item => [
       item.dominioOriginal,
       item.consultaUsada,
       item.via,
-      item.abuseConfidenceScore,
-      item.totalReports,
-      item.lastReportedAt,
-      item.countryCode,
-      item.hostnames
-    ]);
+      item.listedCount,
+      item.listedOn.join('; ')
+    ]);    
 
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -135,44 +129,40 @@ function App() {
       >
         {loading ? '🔄 Verificando...' : 'Verificar Domínios'}
       </button>
-
       {resultados.length > 0 && (
-        <>
-          <h2>Resultados</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Domínio</th>
-                <th>Consulta Usada</th>
-                <th>Tipo</th>
-                <th>Score de Confiança</th>
-                <th>Total de Denúncias</th>
-                <th>Última Denúncia</th>
-                <th>País</th>
-                <th>Hostnames</th>
+      <>
+        <h2>Resultados</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Domínio</th>
+              <th>Consulta Usada</th>
+              <th>Via</th>
+              <th>Nº de Blacklists</th>
+              <th>Blacklists Listadas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resultados.map((item, idx) => (
+              <tr key={idx}>
+                <td>{item.dominioOriginal}</td>
+                <td>{item.consultaUsada}</td>
+                <td>{item.via}</td>
+                <td>{item.listedCount}</td>
+                <td>
+                  {item.listedOn.length > 0
+                    ? item.listedOn.join(', ')
+                    : 'Nenhuma'}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {resultados.map((item, idx) => (
-                <tr key={idx}>
-                  <td>{item.dominioOriginal}</td>
-                  <td>{item.consultaUsada}</td>
-                  <td>{item.via}</td>
-                  <td>{item.abuseConfidenceScore}</td>
-                  <td>{item.totalReports}</td>
-                  <td>{item.lastReportedAt}</td>
-                  <td>{item.countryCode}</td>
-                  <td>{item.hostnames}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          <button onClick={handleDownloadCSV} className="download">
-            📥 Baixar Resultados CSV
-          </button>
-        </>
-      )}
-
+            ))}
+          </tbody>
+        </table>
+        <button onClick={handleDownloadCSV} className="download">
+          📥 Baixar Resultados CSV
+        </button>
+      </>
+    )}
       {erros.length > 0 && (
         <div className="erros-lista">
           <p className="alert-erro">
