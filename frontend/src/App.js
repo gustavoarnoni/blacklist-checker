@@ -57,16 +57,15 @@ function App() {
       'Consulta Usada',
       'Via',
       'Nº de Blacklists',
-      'Listas Blacklistadas'
+      'Blacklists Listadas'
     ];
-    
     const rows = resultados.map(item => [
       item.dominioOriginal,
       item.consultaUsada,
       item.via,
       item.listedCount,
       item.listedOn.join('; ')
-    ]);    
+    ]);       
 
     const csvContent =
       'data:text/csv;charset=utf-8,' +
