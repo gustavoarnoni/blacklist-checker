@@ -42,10 +42,9 @@
         setErros(data.erros);
       } catch (error) {
         console.error('Erro ao verificar domínios:', error);
-        console.log('Resultados recebidos:', data.resultados);
-        console.log('Erros recebidos:', data.erros);
         alert('Erro ao consultar a API. Tente novamente.');
-      } finally {
+      }
+       finally {
         setLoading(false);
       }
     };
