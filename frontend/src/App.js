@@ -29,7 +29,7 @@ function App() {
 
     try {
       setLoading(true);
-      const response = await fetch('https://blacklist.gustavoarnoni.dev.br/api/verificar-dominios', {
+      const response = await fetch('https://blacklist.gustavoarnoni.dev.br/api/verificar-seo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ dominios: dominiosArray }),
