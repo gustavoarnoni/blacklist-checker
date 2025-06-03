@@ -53,19 +53,19 @@ function App() {
     }
 
     const headers = [
-      'Domínio Original',
-      'Consulta Usada',
-      'Via',
-      'Nº de Blacklists',
-      'Blacklists Listadas'
+      'Domínio',
+      'Status Safe Browsing',
+      'Ameaças Encontradas'
     ];
-    const rows = resultados.map(item => [
-      item.dominioOriginal,
-      item.consultaUsada,
-      item.via,
-      item.listedCount,
-      item.listedOn.join('; ')
-    ]);       
+    const rows = resultados.map(item => {
+      // Garantir que item.threats seja sempre um array
+      const threatsArray = Array.isArray(item.threats) ? item.threats : [];
+      return [
+        item.dominioOriginal,
+        item.safeBrowsingStatus,
+        threatsArray.join('; ') || 'Nenhuma'
+      ];
+    });
 
     const csvContent =
       'data:text/csv;charset=utf-8,' +
@@ -74,7 +74,7 @@ function App() {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'resultados.csv');
+    link.setAttribute('download', 'resultados-seo.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -105,7 +105,7 @@ function App() {
 
   return (
     <div className="container">
-      <h1>Verificador de Domínios</h1>
+      <h1>Verificador de Toxidade SEO</h1>
 
       <input
         type="file"
@@ -128,40 +128,49 @@ function App() {
       >
         {loading ? '🔄 Verificando...' : 'Verificar Domínios'}
       </button>
+
       {resultados.length > 0 && (
-      <>
-        <h2>Resultados</h2>
-        <table>
-          <thead>
-            <tr>
-              <th>Domínio</th>
-              <th>Consulta Usada</th>
-              <th>Via</th>
-              <th>Nº de Blacklists</th>
-              <th>Blacklists Listadas</th>
-            </tr>
-          </thead>
-          <tbody>
-            {resultados.map((item, idx) => (
-              <tr key={idx}>
-                <td>{item.dominioOriginal}</td>
-                <td>{item.consultaUsada}</td>
-                <td>{item.via}</td>
-                <td>{item.listedCount}</td>
-                <td>
-                  {item.listedOn.length > 0
-                    ? item.listedOn.join(', ')
-                    : 'Nenhuma'}
-                </td>
+        <>
+          <h2>Resultados</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Domínio</th>
+                <th>Status Safe Browsing</th>
+                <th>Ameaças Encontradas</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        <button onClick={handleDownloadCSV} className="download">
-          📥 Baixar Resultados CSV
-        </button>
-      </>
-    )}
+            </thead>
+            <tbody>
+              {resultados.map((item, idx) => {
+                // Garante que item.threats seja sempre array
+                const threatsArray = Array.isArray(item.threats) ? item.threats : [];
+                return (
+                  <tr key={idx}>
+                    <td>{item.dominioOriginal}</td>
+                    <td
+                      style={{
+                        color: item.safeBrowsingStatus === 'TOXICO' ? '#d9534f' : '#28a745',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {item.safeBrowsingStatus}
+                    </td>
+                    <td>
+                      {threatsArray.length > 0
+                        ? threatsArray.join(', ')
+                        : 'Nenhuma'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <button onClick={handleDownloadCSV} className="download">
+            📥 Baixar Resultados CSV
+          </button>
+        </>
+      )}
+
       {erros.length > 0 && (
         <div className="erros-lista">
           <p className="alert-erro">
